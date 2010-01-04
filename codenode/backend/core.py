@@ -17,6 +17,7 @@ from signal import SIGINT
 from twisted.python import log
 from twisted.runner import procmon
 from twisted.internet import defer
+from twisted.internet import error
 from twisted.internet import reactor
 from twisted.internet import protocol
 from twisted.application import service
@@ -40,6 +41,8 @@ class InvalidEngineType(BackendError):
 class InvalidAccessId(BackendError):
     """Invalid Engine Access Id"""
 
+class MaxProcesses(BackendError):
+    """The maximum numner of engines are already running."""
 
 class EngineProcessProtocol(protocol.ProcessProtocol):
 
@@ -72,13 +75,34 @@ class EngineProcessManager(procmon.ProcessMonitor):
     engineProtocol = EngineProcessProtocol
     START_TIMEOUT = 60 #seconds
 
+    SESSION_TIMEOUT = 500 # make this a configuration thing
+    MAX_PROCESSES = 20 # calc good number based on avail sys resources
+
     def __init__(self):
         procmon.ProcessMonitor.__init__(self)
+        self.lastAccess = {}
+
+    def _checkConsistency(self):
+        for name, protocol in self.protocols.items():
+            if time.time() - self.lastAccess[name] > self.START_TIMEOUT:
+                self.removeProcess(name)
+                continue
+            proc = protocol.transport
+            try:
+                proc.signalProcess(0)
+            except (OSError, error.ProcessExitedAlready):
+                log.msg("Lost process %r somehow. " % name)
+                del self.protocols[name]
+        self.consistency = reactor.callLater(self.consistencyDelay,
+                                            self._checkConsistency)
 
     def addProcess(self, name, proc_config):
         """
         proc_config is an object implementing IEngineConfiguration
         """
+        if len(self.processes) >= self.MAX_PROCESSES:
+            raise MaxProcesses("%d process are running. Max is %s." %
+                    (len(self.processes), self.MAX_PROCESSES,))
         if self.processes.has_key(name):
             raise KeyError("remove %s first" % name)
         p = self.engineProtocol()
@@ -112,6 +136,10 @@ class EngineProcessManager(procmon.ProcessMonitor):
             raise KeyError("No process named %s" % name)
         self.protocols[name].interrupt()
 
+    def touchProcess(self, name):
+        """Update last touch time of process
+        """
+        self.lastAccess[name] = time.time()
 
 class EngineClientManager(service.Service):
     """
@@ -206,6 +234,7 @@ class Backend(service.Service):
         """
         try:
             engine_id = self.engine_instances[access_id]
+            self.processManager.touchProcess(engine_id)
         except KeyError:
             return self.runEngine(access_id)
         return defer.maybeDeferred(self.clientManager.getSession, engine_id)
