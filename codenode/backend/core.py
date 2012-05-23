@@ -102,7 +102,7 @@ class EngineProcessManager(procmon.ProcessMonitor):
         env = p_conf.env
         path = p_conf.path
         self.timeStarted[name] = time.time()
-        p.deferred.setTimeout(self.START_TIMEOUT)
+        #p.deferred.setTimeout(self.START_TIMEOUT)
         reactor.spawnProcess(p, bin, args=args, env=env, path=path)
 
     def interruptProcess(self, name):
