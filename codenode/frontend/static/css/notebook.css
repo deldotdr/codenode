@@ -198,6 +198,9 @@ ul#printers li a {
     position: relative;
 }
 
+textarea {
+    resize: none;
+}
 
 textarea.input {
     border-style: none;

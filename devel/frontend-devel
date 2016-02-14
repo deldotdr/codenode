@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
 echo 'Deprecated.  Please use "codenode-admin frontend -devel"'
-export PYTHONPATH=$PWD/..
+export PYTHONPATH=$PWD/..:$PWD/../codenode
+export DJANGO_SETTINGS_MODULE='frontend.settings'
 cd env
 twistd -n --pidfile=./frontend.pid codenode-frontend --env_path=$PWD --devel_mode

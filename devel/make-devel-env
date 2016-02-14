@@ -2,7 +2,11 @@
 
 echo 'Deprecated.  Please use "codenode-admin xxx -devel"'
 export PYTHONPATH=$PWD/..
-../bin/codenode-admin init -name env
-rm env/data/codenode.db
+../codenode/scripts/codenode-admin init -name env
+rm -rf env/frontend/static/
+rm -rf env/frontend/templates/
+ln -s $PWD/../codenode/frontend/static/ env/frontend/static
+ln -s $PWD/../codenode/frontend/templates/ env/frontend/templates
+#rm env/data/codenode.db
 cd env
-django-admin.py syncdb --pythonpath=$PWD --settings="frontend.settings"
+#django-admin.py syncdb --pythonpath=$PWD --settings="frontend.settings"
